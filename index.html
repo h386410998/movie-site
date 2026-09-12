@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>陈炫琪专属 电影搜索</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='10' width='52' height='44' rx='10' fill='%230f1424' stroke='%23f5b942' stroke-width='4'/%3E%3Cpath d='M27 23l16 9-16 9z' fill='%23f5b942'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
+<style>
+:root{
+  --bg:#0a0d17; --bg2:#0f1424; --card:#141a2e; --card2:#1a2240;
+  --line:rgba(255,255,255,.08); --txt:#e8ecf6; --sub:#8a93ab; --dim:#5d678f;
+  --gold:#f5b942; --gold2:#ffd479; --red:#ff5c5c; --green:#3ecf8e;
+  --shadow:0 10px 30px rgba(0,0,0,.45);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  background:var(--bg); color:var(--txt); min-height:100vh; line-height:1.6;
+  background-image:radial-gradient(1100px 500px at 85% -10%, rgba(245,185,66,.08), transparent 60%),
+    radial-gradient(900px 480px at -10% 110%, rgba(62,120,255,.07), transparent 60%);
+  background-attachment:fixed;
+}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+img{display:block}
+::selection{background:rgba(245,185,66,.3)}
+
+/* ===== 顶部 ===== */
+header{
+  position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);
+  background:rgba(10,13,23,.82);border-bottom:1px solid var(--line);
+}
+.hd-inner{max-width:1240px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:19px;letter-spacing:.5px;white-space:nowrap}
+.brand .logo{
+  width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;
+  background:linear-gradient(135deg,#f5b942,#ff8a3d);box-shadow:0 4px 14px rgba(245,185,66,.35);
+}
+.brand .logo svg{width:18px;height:18px;fill:#0a0d17}
+.brand em{font-style:normal;color:var(--gold)}
+.search-wrap{flex:1;min-width:240px;display:flex;gap:8px}
+.search-box{
+  flex:1;display:flex;align-items:center;gap:8px;background:var(--card);
+  border:1px solid var(--line);border-radius:12px;padding:9px 14px;transition:.2s;
+}
+.search-box:focus-within{border-color:var(--gold);box-shadow:0 0 0 3px rgba(245,185,66,.15)}
+.search-box svg{width:16px;height:16px;stroke:var(--sub);flex:none}
+.search-box input{
+  flex:1;background:none;border:none;outline:none;color:var(--txt);font-size:15px;min-width:0;
+}
+.search-box input::placeholder{color:var(--dim)}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:12px;
+  font-weight:700;font-size:14px;padding:10px 18px;transition:.18s;user-select:none;white-space:nowrap;
+}
+.btn-gold{background:linear-gradient(135deg,#f5b942,#ff8a3d);color:#1a1204;box-shadow:0 6px 18px rgba(245,185,66,.28)}
+.btn-gold:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(245,185,66,.4)}
+.btn-ghost{border:1px solid var(--line);color:var(--sub)}
+.btn-ghost:hover{color:var(--txt);border-color:rgba(255,255,255,.25)}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+/* ===== 主体 ===== */
+main{max-width:1240px;margin:0 auto;padding:26px 20px 80px}
+.view{display:none}
+.view.on{display:block;animation:fadeUp .35s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* ===== 首页 hero ===== */
+.hero{
+  text-align:center;padding:46px 16px 30px;
+}
+.hero .big-title{font-size:clamp(30px,5vw,52px);font-weight:900;letter-spacing:1px;line-height:1.25}
+.hero .big-title .g{background:linear-gradient(120deg,#f5b942,#ff8a3d,#f5b942);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--sub);margin-top:12px;font-size:15px}
+.hero .tags{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:26px}
+.chip{
+  padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:var(--card);
+  color:var(--txt);font-size:13px;transition:.18s;
+}
+.chip:hover{border-color:var(--gold);color:var(--gold2);transform:translateY(-2px)}
+.hero .hint{margin-top:26px;font-size:12.5px;color:var(--dim);display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}
+
+/* ===== 搜索中 / 结果 ===== */
+.res-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.res-head h2{font-size:20px;font-weight:800}
+.res-head .meta{color:var(--sub);font-size:13px}
+.res-head .meta b{color:var(--gold2);font-weight:700}
+.source-switch{display:flex;gap:6px;flex-wrap:wrap}
+.src-btn{
+  padding:6px 13px;border-radius:9px;border:1px solid var(--line);font-size:12.5px;color:var(--sub);transition:.15s;
+}
+.src-btn.on{background:rgba(245,185,66,.14);border-color:var(--gold);color:var(--gold2)}
+.src-btn:hover{color:var(--txt)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:18px}
+@media(max-width:520px){.grid{grid-template-columns:repeat(2,1fr);gap:12px}}
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  transition:transform .2s,box-shadow .2s,border-color .2s;cursor:pointer;position:relative;
+}
+.card:hover{transform:translateY(-5px);box-shadow:var(--shadow);border-color:rgba(245,185,66,.45)}
+.poster{position:relative;aspect-ratio:2/3;background:linear-gradient(160deg,#1a2240,#10152a);overflow:hidden}
+.poster img{width:100%;height:100%;object-fit:cover;transition:transform .35s}
+.card:hover .poster img{transform:scale(1.06)}
+.poster .ph{position:absolute;inset:0;display:none;place-items:center}
+.poster .ph svg{width:42px;height:42px;stroke:var(--dim)}
+.badge{
+  position:absolute;top:8px;left:8px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:7px;
+  background:rgba(10,13,23,.72);backdrop-filter:blur(4px);color:var(--gold2);max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.score{
+  position:absolute;top:8px;right:8px;font-size:11.5px;font-weight:800;padding:3px 8px;border-radius:7px;
+  background:rgba(10,13,23,.72);backdrop-filter:blur(4px);color:var(--gold);
+}
+.score.hot{color:var(--red)}
+.cinfo{padding:11px 12px 12px}
+.cname{font-size:14px;font-weight:700;line-height:1.35;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.cmeta{font-size:12px;color:var(--sub);margin-top:4px;display:flex;gap:6px;flex-wrap:wrap}
+.cmeta .t{color:var(--gold);font-size:11.5px;border:1px solid rgba(245,185,66,.4);border-radius:5px;padding:0 5px;line-height:1.6}
+.cmeta .year{flex:none}
+.pager{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:34px}
+.pager .info{color:var(--sub);font-size:13px}
+.empty{
+  text-align:center;padding:70px 20px;color:var(--sub);
+}
+.empty svg{width:52px;height:52px;stroke:var(--dim);margin:0 auto 16px}
+.empty h3{color:var(--txt);font-size:17px;margin-bottom:6px}
+.spinner{
+  width:44px;height:44px;margin:60px auto;border-radius:50%;
+  border:3px solid var(--line);border-top-color:var(--gold);animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.skel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:18px}
+@media(max-width:520px){.skel-grid{grid-template-columns:repeat(2,1fr);gap:12px}}
+.skel-card{border-radius:14px;overflow:hidden;background:var(--card);border:1px solid var(--line)}
+.skel-post{aspect-ratio:2/3;background:linear-gradient(100deg,#141a2e 40%,#1d2547 50%,#141a2e 60%);background-size:200% 100%;animation:sk 1.2s infinite}
+.skel-line{height:11px;margin:10px 12px;border-radius:6px;background:linear-gradient(100deg,#141a2e 40%,#1d2547 50%,#141a2e 60%);background-size:200% 100%;animation:sk 1.2s infinite}
+.skel-line.s2{width:60%;margin-top:7px}
+@keyframes sk{to{background-position:-200% 0}}
+
+/* ===== 详情 ===== */
+.detail-top{display:flex;gap:26px;flex-wrap:wrap}
+.detail-poster{width:250px;flex:none;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:var(--card);aspect-ratio:2/3}
+@media(max-width:560px){.detail-poster{width:140px}}
+.detail-poster img{width:100%;height:100%;object-fit:cover}
+.detail-poster .ph{width:100%;height:100%;display:none;place-items:center}
+.detail-info{flex:1;min-width:260px}
+.detail-info h1{font-size:clamp(22px,3.4vw,32px);font-weight:900;line-height:1.3}
+.detail-info .sub{color:var(--sub);font-size:13.5px;margin-top:2px}
+.dtags{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.dtag{font-size:12px;padding:4px 11px;border-radius:8px;background:var(--card2);border:1px solid var(--line);color:var(--txt)}
+.dtag b{color:var(--gold2);font-weight:600}
+.desc{margin-top:16px;color:#c3cbe0;font-size:14px;max-height:120px;overflow:hidden;position:relative}
+.desc.exp{max-height:none}
+.desc::after{content:"";position:absolute;left:0;right:0;bottom:0;height:40px;background:linear-gradient(transparent,var(--bg))}
+.desc.exp::after{display:none}
+.desc-more{color:var(--gold);font-size:12.5px;margin-top:6px;cursor:pointer;user-select:none}
+.detail-actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.eps-block{margin-top:32px}
+.eps-block h3{font-size:16px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.eps-block h3::before{content:"";width:4px;height:16px;border-radius:2px;background:var(--gold)}
+.eps-list{display:flex;flex-wrap:wrap;gap:9px}
+.ep-btn{
+  min-width:64px;text-align:center;padding:8px 14px;border-radius:9px;background:var(--card2);
+  border:1px solid var(--line);font-size:13px;transition:.15s;
+}
+.ep-btn:hover{border-color:var(--gold);color:var(--gold2)}
+.ep-btn.on{background:rgba(245,185,66,.16);border-color:var(--gold);color:var(--gold2);font-weight:700}
+
+/* ===== 播放器 ===== */
+.player-wrap{margin-bottom:24px}
+.player-title{font-size:19px;font-weight:800;margin-bottom:12px;line-height:1.4}
+.player-title small{display:block;color:var(--sub);font-weight:400;font-size:13px;margin-top:4px}
+.player-box{
+  position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:16px;overflow:hidden;
+  border:1px solid var(--line);box-shadow:var(--shadow);
+}
+.player-box video{width:100%;height:100%;background:#000}
+.player-msg{
+  position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:20px;
+  background:linear-gradient(160deg,#10152a,#0a0d17);z-index:5;
+}
+.player-msg .inner{max-width:460px}
+.player-msg svg{width:44px;height:44px;stroke:var(--dim);margin:0 auto 14px}
+.player-msg h3{font-size:16px;margin-bottom:6px}
+.player-msg p{color:var(--sub);font-size:13px;margin-bottom:14px}
+.player-frame{position:absolute;inset:0;width:100%;height:100%;border:none;z-index:4}
+.player-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+.ep-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.play-src{font-size:12.5px;color:var(--sub)}
+.play-src b{color:var(--gold2)}
+
+/* ===== footer ===== */
+footer{border-top:1px solid var(--line);padding:26px 20px;text-align:center;color:var(--dim);font-size:12.5px;line-height:2}
+footer b{color:var(--gold)}
+
+/* ===== toast ===== */
+.toast{
+  position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);z-index:99;
+  background:#1a2240;border:1px solid var(--line);color:var(--txt);padding:11px 20px;border-radius:12px;
+  font-size:13.5px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;max-width:88vw;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{border-color:rgba(255,92,92,.5);color:#ffb3b3}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd-inner">
+    <a class="brand" href="#/" title="陈炫琪专属 电影搜索">
+      <span class="logo"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+      <span>陈炫琪专属 <em>电影搜索</em></span>
+    </a>
+    <div class="search-wrap">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="kwInput" type="text" placeholder="搜索电影 / 电视剧 / 动漫…" maxlength="60" autocomplete="off">
+      </div>
+      <button class="btn btn-gold" id="searchBtn">搜索</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- ===== 视图：首页 ===== -->
+  <section id="view-home" class="view on">
+    <div class="hero">
+      <div class="big-title">陈炫琪专属 <span class="g">电影搜索</span></div>
+      <p>全网影视资源一网打尽 · 高清在线播放 · 支持多资源站切换</p>
+      <div class="tags" id="hotTags"></div>
+      <div class="hint">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        资源来自第三方接口，仅供个人学习测试，请支持正版影视
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 视图：搜索结果 ===== -->
+  <section id="view-results" class="view">
+    <div class="res-head">
+      <h2 id="resTitle">搜索结果</h2>
+      <div class="meta" id="resMeta"></div>
+    </div>
+    <div class="source-switch" id="sourceSwitch"></div>
+    <div id="resBody" style="margin-top:16px"></div>
+  </section>
+
+  <!-- ===== 视图：详情 ===== -->
+  <section id="view-detail" class="view"></section>
+
+  <!-- ===== 视图：播放 ===== -->
+  <section id="view-player" class="view"></section>
+</main>
+
+<footer>
+  <div><b>陈炫琪专属 电影搜索</b> · 高清影视在线看</div>
+  <div>免责声明：本站内容均来自第三方公开接口，仅供学习交流使用，请勿用于商业用途，侵权联删。</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+<script>
+"use strict";
+/* ================= 配置 ================= */
+var API_BASE = "https://api.yaohud.cn/api/v5/yingshi";
+var API_KEY  = "cA92M8EqjQkZZq4AkBM";
+var PARSER   = "https://m3u8.yaohud.cn/?url=";
+var SOURCES  = [{id:1,name:"源站1"},{id:2,name:"源站2"},{id:3,name:"源站3"},{id:4,name:"源站4"}];
+var HOT_TAGS = ["流浪地球","哪吒","狂飙","三体","周星驰","封神","长津湖","复仇者联盟","速度与激情","白蛇","庆余年","斗罗大陆"];
+
+var PH_SVG = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300"><rect width="200" height="300" fill="#141a2e"/><g fill="none" stroke="#3a4568" stroke-width="4" stroke-linecap="round"><rect x="30" y="90" width="70" height="52" rx="6"/><path d="M62 100l24 16-24 16z"/><rect x="110" y="132" width="60" height="46" rx="6"/><path d="M138 141l20 14-20 14z"/><rect x="32" y="172" width="60" height="46" rx="6"/><path d="M60 181l20 14-20 14z"/></g></svg>');
+
+/* ================= 工具 ================= */
+function $(s){return document.querySelector(s)}
+function el(tag, cls, html){var e=document.createElement(tag); if(cls) e.className=cls; if(html!=null) e.innerHTML=html; return e}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function toast(msg, err){var t=$("#toast"); t.textContent=msg; t.className="toast show"+(err?" err":""); clearTimeout(t._tm); t._tm=setTimeout(function(){t.className="toast"},2600)}
+function qs(obj){return Object.keys(obj).filter(function(k){return obj[k]!==""&&obj[k]!=null}).map(function(k){return encodeURIComponent(k)+"="+encodeURIComponent(obj[k])}).join("&")}
+
+var hls = null;
+function destroyHls(){ if(hls){ try{hls.destroy()}catch(e){} hls=null } }
+
+/* ================= API ================= */
+function apiGet(params){
+  return fetch(API_BASE + "?" + qs(Object.assign({key:API_KEY}, params)), {cache:"no-store"})
+    .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+    .then(function(j){ if(j.code!==200){ var e=new Error(j.msg||"请求失败"); e.code=j.code; e.detail=j.data&&j.data.msg; throw e; } return j.data; });
+}
+function search(kw, source){
+  return apiGet({msg:kw, source:source});
+}
+function detail(kw, source, n){
+  return apiGet({msg:kw, source:source, n:n});
+}
+
+/* ================= 海报 ================= */
+function posterImg(src, holder){
+  if(!src) return holder;
+  var img = new Image();
+  img.src = src;
+  img.loading = "lazy";
+  img.alt = "";
+  img.onerror = function(){ img.style.display="none"; if(holder) holder.style.display="grid"; };
+  return img;
+}
+function phEl(cls){var d=el("div",cls); d.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>'; return d}
+/* ================= 视图切换 ================= */
+function showView(id){
+  document.querySelectorAll('.view').forEach(function(v){v.classList.remove('on')});
+  document.getElementById(id).classList.add('on');
+  window.scrollTo({top:0});
+}
+
+/* ================= 路由 ================= */
+function nav(h){ location.hash = h }
+function parseHash(){
+  var h = (location.hash||'').replace(/^#\/?/,'');
+  if(!h) return {view:'home'};
+  var p = h.split('/').map(function(s){return decodeURIComponent(s)});
+  if(p[0]==='s') return {view:'results', kw:p[1]||'', src:+(p[2]||1), page:+(p[3]||1)};
+  if(p[0]==='d') return {view:'detail', kw:p[1]||'', src:+(p[2]||1), n:+(p[3]||1)};
+  if(p[0]==='p') return {view:'player', kw:p[1]||'', src:+(p[2]||1), n:+(p[3]||1), ep:+(p[4]||1)};
+  return {view:'home'};
+}
+function enc(s){return encodeURIComponent(s)}
+function srcLink(kw,src,page){return '#/s/'+enc(kw)+'/'+(src||1)+'/'+(page||1)}
+function detLink(kw,src,n){return '#/d/'+enc(kw)+'/'+(src||1)+'/'+n}
+function playLink(kw,src,n,ep){return '#/p/'+enc(kw)+'/'+(src||1)+'/'+n+'/'+(ep||1)}
+
+function render(){
+  destroyHls();
+  var st = parseHash();
+  $('#kwInput').value = st.kw||'';
+  if(st.view==='home'){ renderHome(); }
+  else if(st.view==='results'){ renderResults(st); }
+  else if(st.view==='detail'){ renderDetail(st); }
+  else if(st.view==='player'){ renderPlayer(st); }
+}
+
+/* ================= 首页 ================= */
+function renderHome(){
+  showView('view-home');
+  var box = $('#hotTags'); box.innerHTML='';
+  HOT_TAGS.forEach(function(t){
+    var a = el('a','chip',esc(t)); a.href = srcLink(t,1,1);
+    box.appendChild(a);
+  });
+}
+
+/* ================= 搜索结果 ================= */
+function renderResults(st){
+  showView('view-results');
+  $('#resTitle').textContent = '「'+st.kw+'」的搜索结果';
+  $('#resMeta').textContent = '';
+  renderSourceSwitch(st);
+  var body = $('#resBody');
+  body.innerHTML = '';
+  var sk = el('div','skel-grid');
+  for(var i=0;i<12;i++){
+    var c=el('div','skel-card'); c.innerHTML='<div class="skel-post"></div><div class="skel-line"></div><div class="skel-line s2"></div>';
+    sk.appendChild(c);
+  }
+  body.appendChild(sk);
+  search(st.kw, st.src, st.page).then(function(data){
+    body.innerHTML='';
+    if(!data.list || !data.list.length){ body.appendChild(emptyBox('未找到相关资源','换个关键词试试，或切换资源站搜索')); $('#resMeta').textContent='共 0 条结果'; return; }
+    var total = data.total||0;
+    $('#resMeta').innerHTML = '共 <b>'+total+'</b> 条结果 · 资源站：'+esc(data.source&&data.source.name||('源站'+st.src));
+    var grid = el('div','grid');
+    data.list.forEach(function(it){
+      var card = el('div','card');
+      card.setAttribute('data-n', it.n);
+      var ph = phEl('ph');
+      var img = posterImg(it.pic, ph);
+      var badge = it.remarks ? '<span class="badge">'+esc(it.remarks)+'</span>' : '';
+      var score = (it.score && parseFloat(it.score)>0) ? '<span class="score'+(parseFloat(it.score)>=8?' hot':'')+'">'+esc(it.score)+'</span>' : '';
+      var type = it.type ? '<span class="t">'+esc(it.type)+'</span>' : '';
+      card.innerHTML = '<div class="poster"></div>';
+      var ps = card.querySelector('.poster');
+      ps.appendChild(img); if(ph){ph.style.display='none';ps.appendChild(ph)}
+      ps.insertAdjacentHTML('afterbegin', badge+score);
+      card.appendChild(el('div','cinfo',
+        '<div class="cname">'+esc(it.name)+'</div>'+
+        '<div class="cmeta"><span class="year">'+esc(it.year||'')+'</span>'+type+'<span>'+esc(it.area||'')+'</span></div>'));
+      card.addEventListener('click', function(){ nav(detLink(st.kw, st.src, this.getAttribute('data-n'))) });
+      grid.appendChild(card);
+    });
+    body.appendChild(grid);
+    if(total > data.list.length){
+      body.appendChild(el('div','pager', '<span class="info">共 '+total+' 条结果，当前仅显示前 '+data.list.length+' 条，建议输入更精确的关键词获取更多结果</span>'));
+    }
+  }).catch(function(e){
+    body.innerHTML='';
+    body.appendChild(emptyBox('请求失败：'+esc(e.detail||e.message),'可能是接口临时波动，点击重试'));
+    var rb = body;
+    var retry = rb.querySelector('.empty button'); if(retry) retry.addEventListener('click',function(){ renderResults(st) });
+  });
+}
+
+function renderSourceSwitch(st){
+  var sw = $('#sourceSwitch'); sw.innerHTML='';
+  SOURCES.forEach(function(s){
+    var b = el('button','src-btn'+(s.id===st.src?' on':''), s.name);
+    b.addEventListener('click', function(){
+      if(st.view==='results') nav(srcLink(st.kw,s.id,1));
+      else if(st.view==='detail') renderDetailSrc(st, s.id);
+      else if(st.view==='player') switchPlayerSrc(st, s.id);
+    });
+    sw.appendChild(b);
+  });
+}
+
+function emptyBox(title, tip){
+  var d = el('div','empty');
+  d.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M3 9h18M9 21V9M7.5 6h.01M12 6h.01M16.5 6h.01M9 12l6 6m0-6l-6 6"/></svg><h3>'+esc(title)+'</h3><p>'+esc(tip)+'</p><button class="btn btn-ghost" style="margin-top:8px">重新加载</button>';
+  return d;
+}
+
+/* ================= 详情 ================= */
+function renderDetail(st){
+  showView('view-detail');
+  var v = $('#view-detail');
+  v.innerHTML = '<div class="spinner"></div>';
+  detail(st.kw, st.src, st.n).then(function(d){
+    v.innerHTML='';
+    renderDetailContent(v, st, d);
+  }).catch(function(e){
+    v.innerHTML='';
+    v.appendChild(emptyBox('加载详情失败：'+esc(e.detail||e.message),'可返回搜索列表重新进入'));
+    var btn = v.querySelector('.empty button'); if(btn) btn.addEventListener('click',function(){ renderDetail(st) });
+  });
+}
+function renderDetailSrc(st, src){
+  search(st.kw, src, 1).then(function(data){
+    if(!data.list || !data.list.length){ toast('该资源站没有「'+st.kw+'」的结果', true); return; }
+    nav(detLink(st.kw, src, data.list[0].n));
+  }).catch(function(e){ toast('换源失败：'+(e.detail||e.message), true) });
+}
+function renderDetailContent(v, st, d){
+  var ph = phEl('ph');
+  var img = posterImg(d.pic, ph);
+  var top = el('div','detail-top');
+  var pbox = el('div','detail-poster');
+  pbox.appendChild(img); if(ph){ph.style.display='none';pbox.appendChild(ph)}
+  var info = el('div','detail-info');
+  var tags = [];
+  if(d.year) tags.push('<span class="dtag"><b>年份</b> '+esc(d.year)+'</span>');
+  if(d.area) tags.push('<span class="dtag"><b>地区</b> '+esc(d.area)+'</span>');
+  if(d.language) tags.push('<span class="dtag"><b>语言</b> '+esc(d.language)+'</span>');
+  if(d.type) tags.push('<span class="dtag"><b>类型</b> '+esc(d.type)+'</span>');
+  if(d.remarks) tags.push('<span class="dtag"><b>状态</b> '+esc(d.remarks)+'</span>');
+  if(d.duration) tags.push('<span class="dtag"><b>时长</b> '+esc(d.duration)+'</span>');
+  if(d.update_time) tags.push('<span class="dtag"><b>更新</b> '+esc(d.update_time.slice(0,10))+'</span>');
+  var scoreHtml = (d.douban_score && parseFloat(d.douban_score)>0)
+    ? '<span class="score" style="position:static;display:inline-block;background:rgba(245,185,66,.15);border:1px solid rgba(245,185,66,.5)">豆瓣 '+esc(d.douban_score)+'</span> ' : '';
+  var actors = (d.actors||'').split(',').filter(function(s){return s&&s.trim()}).join(' / ');
+  var director = (d.director||'').split(',').filter(function(s){return s&&s.trim()}).join(' / ');
+  info.innerHTML =
+    '<h1>'+esc(d.name)+'</h1>'+
+    (d.subtitle?'<div class="sub">'+esc(d.subtitle)+'</div>':'')+
+    '<div class="dtags">'+scoreHtml+tags.join('')+'</div>'+
+    (director?'<div class="dtags" style="margin-top:10px"><span class="dtag"><b>导演</b> '+esc(director)+'</span></div>':'')+
+    (actors?'<div class="dtags" style="margin-top:8px"><span class="dtag"><b>主演</b> '+esc(actors)+'</span></div>':'');
+  var descText = d.intro || d.blurb || d.content || '暂无简介';
+  var desc = el('div','desc', esc(descText));
+  var more = null;
+  if(descText.length>90){
+    more = el('div','desc-more','展开简介 ▾');
+    more.addEventListener('click', function(){
+      desc.classList.add('exp'); more.style.display='none';
+    });
+  }
+  var acts = el('div','detail-actions');
+  var playBtn = el('button','btn btn-gold','▶ 立即播放');
+  playBtn.addEventListener('click', function(){
+    if(d.episodes && d.episodes.length) nav(playLink(st.kw, st.src, st.n, 1));
+    else toast('该资源站暂无可播放链接，请换源', true);
+  });
+  acts.appendChild(playBtn);
+  info.appendChild(desc); if(more) info.appendChild(more); info.appendChild(acts);
+  top.appendChild(pbox); top.appendChild(info);
+  v.appendChild(top);
+  /* 选集 */
+  if(d.episodes && d.episodes.length){
+    var block = el('div','eps-block');
+    block.appendChild(el('h3','', '播放线路 · 共 '+d.episodes.length+' 集（'+(d.source&&d.source.name||('源站'+st.src))+'）'));
+    var list = el('div','eps-list');
+    d.episodes.forEach(function(ep,i){
+      var b = el('button','ep-btn', esc(ep.title||('第'+(i+1)+'集')));
+      b.addEventListener('click', function(){ nav(playLink(st.kw, st.src, st.n, i+1)) });
+      list.appendChild(b);
+    });
+    block.appendChild(list);
+    v.appendChild(block);
+  } else {
+    v.appendChild(el('div','eps-block', '<h3>暂无播放链接</h3><p style="color:var(--sub);font-size:13px">可尝试切换其他资源站获取播放源</p>'));
+  }
+}
+
+/* ================= 播放器 ================= */
+var playerFail = false;
+function renderPlayer(st){
+  showView('view-player');
+  var v = $('#view-player');
+  v.innerHTML = '';
+  var srcSw = el('div','source-switch', ''); v.appendChild(srcSw);
+  renderSourceSwitch(st);
+  var wrap = el('div','player-wrap');
+  wrap.innerHTML = '<div class="spinner"></div>';
+  v.appendChild(wrap);
+  detail(st.kw, st.src, st.n).then(function(d){
+    var eps = d.episodes||[];
+    if(!eps.length){ wrap.innerHTML=''; wrap.appendChild(emptyBox('该资源站暂无播放链接','试试切换其他资源站')); return; }
+    var epIdx = Math.min(Math.max(st.ep,1), eps.length) - 1;
+    var ep = eps[epIdx];
+    wrap.innerHTML = '';
+    var title = el('div','player-title', esc(d.name));
+    title.appendChild(el('small','', (ep.title||('第'+(epIdx+1)+'集'))+' · '+(d.year||'')+' '+(d.area||'')+' · 资源站 '+(d.source&&d.source.name||('源站'+st.src))));
+    wrap.appendChild(title);
+    var box = el('div','player-box');
+    var video = el('video'); video.controls = true; video.playsInline = true; video.setAttribute('webkit-playsinline','');
+    var msg = el('div','player-msg');
+    msg.innerHTML = '<div class="inner"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><h3>正在加载播放资源…</h3><p>首次加载可能需要几秒，请稍候</p></div>';
+    box.appendChild(video); box.appendChild(msg);
+    wrap.appendChild(box);
+    var toolbar = el('div','player-toolbar');
+    var reload = el('button','btn btn-ghost','刷新播放');
+    reload.addEventListener('click', function(){ renderPlayer(st) });
+    toolbar.appendChild(reload);
+    wrap.appendChild(toolbar);
+    if(eps.length>1){
+      var pills = el('div','ep-pills');
+      eps.forEach(function(e,i){
+        var b = el('button','ep-btn'+(i===epIdx?' on':''), esc(e.title||('第'+(i+1)+'集')));
+        b.addEventListener('click', function(){ nav(playLink(st.kw, st.src, st.n, i+1)) });
+        pills.appendChild(b);
+      });
+      wrap.appendChild(pills);
+    }
+    playerFail = false;
+    startPlay(video, msg, ep, function(ok, err){
+      if(ok){ msg.style.display='none'; }
+      else if(!playerFail){
+        playerFail = true;
+        msg.innerHTML = '<div class="inner"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9l5 3-5 3z"/></svg><h3>正在切换备用播放通道…</h3><p>如长时间无画面可刷新重试或更换资源站</p></div>';
+        var frame = el('iframe','player-frame');
+        frame.src = PARSER + encodeURIComponent(ep.url||ep.m3u8url);
+        frame.allow = 'fullscreen; autoplay';
+        box.appendChild(frame);
+      } else {
+        msg.innerHTML = '<div class="inner"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg><h3>播放失败</h3><p>'+esc(err||'')+'<br>可点击上方「刷新播放」或切换资源站重试</p></div>';
+      }
+    });
+  }).catch(function(e){
+    wrap.innerHTML='';
+    wrap.appendChild(emptyBox('加载播放信息失败：'+esc(e.detail||e.message),'返回重试或切换资源站'));
+  });
+}
+function switchPlayerSrc(st, src){
+  search(st.kw, src, 1).then(function(data){
+    if(!data.list || !data.list.length){ toast('该资源站没有「'+st.kw+'」的结果', true); return; }
+    nav(playLink(st.kw, src, data.list[0].n, 1));
+  }).catch(function(e){ toast('换源失败：'+(e.detail||e.message), true) });
+}
+function startPlay(video, msg, ep, cb){
+  var url = ep.url || ep.m3u8url;
+  if(!url){ cb(false,'无可播放地址'); return; }
+  var done=false;
+  function ok(){ if(!done){done=true; cb(true)} }
+  function fail(m){ if(!done){done=true; cb(false,m)} }
+  video.addEventListener('playing', ok);
+  video.addEventListener('error', function(){ fail('播放器加载出错（'+video.error&&video.error.code+'）') });
+  if(window.Hls && Hls.isSupported()){
+    try{
+      hls = new Hls({enableWorker:true, lowLatencyMode:false, maxBufferLength:30});
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, function(){ autoplay(video) });
+      var retried=false;
+      hls.on(Hls.Events.ERROR, function(evt, data){
+        if(!data.fatal) return;
+        if(data.type==='networkError' && !retried){ retried=true; hls.startLoad(); return; }
+        if(data.type==='mediaError' && !retried){ retried=true; hls.recoverMediaError(); return; }
+        fail(data.details||'流媒体加载失败');
+      });
+    }catch(e){ fail('播放初始化失败'); }
+  } else if(video.canPlayType('application/vnd.apple.mpegurl')){
+    video.src = url;
+    autoplay(video);
+  } else {
+    fail('当前浏览器不支持 HLS 播放');
+  }
+  setTimeout(function(){ if(!done && video.readyState===0){ /* 继续等待 */ } }, 8000);
+}
+function autoplay(video){
+  var p = video.play();
+  if(p && p.catch) p.catch(function(){
+    video.muted = true;
+    video.play().catch(function(){});
+  });
+}
+
+/* ================= 事件 ================= */
+function doSearch(){
+  var kw = $('#kwInput').value.trim();
+  if(!kw){ toast('请输入影视名称'); return; }
+  nav(srcLink(kw,1,1));
+}
+$('#searchBtn').addEventListener('click', doSearch);
+$('#kwInput').addEventListener('keydown', function(e){ if(e.key==='Enter') doSearch() });
+window.addEventListener('hashchange', render);
+render();
+</script>
+</body>
+</html>
