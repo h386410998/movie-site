@@ -225,7 +225,7 @@ footer b{color:var(--gold)}
     <div class="search-wrap">
       <div class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-        <input id="kwInput" type="text" placeholder="搜索电影 / 电视剧 / 动漫…" maxlength="60" autocomplete="off">
+        <input id="kwInput" type="text" placeholder="搜索片名 / 演员 / 导演…" maxlength="60" autocomplete="off">
       </div>
       <button class="btn btn-gold" id="searchBtn">搜索</button>
     </div>
@@ -280,6 +280,7 @@ var PARSER   = "https://m3u8.yaohud.cn/?url=";
 var SOURCES  = [{id:1,name:"源站1"},{id:2,name:"源站2"},{id:3,name:"源站3"},{id:4,name:"源站4"}];
 var HOT_TAGS = ["流浪地球","哪吒","狂飙","三体","周星驰","封神","长津湖","复仇者联盟","速度与激情","白蛇","庆余年","斗罗大陆"];
 var CAT_TAGS = ["电影","电视剧","动漫","综艺","纪录片","科幻","动作","喜剧","爱情","悬疑","恐怖","战争"];
+var ACTOR_TAGS = ["吴京","刘德华","周星驰","沈腾","贾玲","成龙","李连杰","周润发","梁朝伟","古天乐","张艺谋","陈思诚"];
 
 var PH_SVG = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300"><rect width="200" height="300" fill="#141a2e"/><g fill="none" stroke="#3a4568" stroke-width="4" stroke-linecap="round"><rect x="30" y="90" width="70" height="52" rx="6"/><path d="M62 100l24 16-24 16z"/><rect x="110" y="132" width="60" height="46" rx="6"/><path d="M138 141l20 14-20 14z"/><rect x="32" y="172" width="60" height="46" rx="6"/><path d="M60 181l20 14-20 14z"/></g></svg>');
@@ -369,8 +370,21 @@ function renderHome(){
     cbox.appendChild(a);
   });
   sec.appendChild(cbox);
+  /* 热门演员/导演 */
+  var sec2 = el('div','cat-section');
+  sec2.appendChild(el('h3','','热门演员 / 导演'));
+  var abox = el('div','tags');
+  abox.style.marginTop = '0';
+  ACTOR_TAGS.forEach(function(t){
+    var a = el('a','chip',esc(t)); a.href = srcLink(t,1,1);
+    abox.appendChild(a);
+  });
+  sec2.appendChild(abox);
   var hero = document.querySelector('.hero');
-  if(hero && !hero.querySelector('.cat-section')) hero.appendChild(sec);
+  if(hero){
+    if(!hero.querySelector('.cat-section')) hero.appendChild(sec);
+    if(!hero.querySelectorAll('.cat-section')[1]) hero.appendChild(sec2);
+  }
 }
 
 /* ================= 搜索结果 ================= */
@@ -387,11 +401,23 @@ function renderResults(st){
     sk.appendChild(c);
   }
   body.appendChild(sk);
-  search(st.kw, st.src, st.page).then(function(data){
+  /* 多源站自动轮询：当前源站无结果时自动尝试其他源站 */
+  searchWithFallback(st.kw, st.src, []).then(function(result){
     body.innerHTML='';
-    if(!data.list || !data.list.length){ body.appendChild(emptyBox('未找到相关资源','换个关键词试试，或切换资源站搜索')); $('#resMeta').textContent='共 0 条结果'; return; }
+    var data = result.data, actualSrc = result.src;
+    if(!data || !data.list || !data.list.length){
+      body.appendChild(emptyBox('未找到相关资源','换个关键词试试，已自动尝试全部资源站'));
+      $('#resMeta').textContent='共 0 条结果';
+      return;
+    }
+    if(actualSrc !== st.src){
+      renderSourceSwitch({view:'results', kw:st.kw, src:actualSrc});
+      toast('已自动切换到'+(data.source&&data.source.name||('源站'+actualSrc))+'找到结果');
+    }
     var total = data.total||0;
-    $('#resMeta').innerHTML = '共 <b>'+total+'</b> 条结果 · 资源站：'+esc(data.source&&data.source.name||('源站'+st.src));
+    $('#resMeta').innerHTML = '共 <b>'+total+'</b> 条结果 · 资源站：'+esc(data.source&&data.source.name||('源站'+actualSrc));
+    /* 筛选状态 */
+    var fstate = {type:'', year:''};
     /* 分类筛选 */
     var typeSet = {};
     data.list.forEach(function(it){ if(it.type) typeSet[it.type]=true; });
@@ -400,20 +426,38 @@ function renderResults(st){
       var cf = el('div','cat-filter');
       cf.appendChild(el('span','label','分类：'));
       var allBtn = el('button','cat-btn on','全部');
-      allBtn.addEventListener('click', function(){ filterByType(cf, grid, ''); });
+      allBtn.addEventListener('click', function(){ fstate.type=''; updateFilterBtns(cf,''); applyFilters(grid,fstate); });
       cf.appendChild(allBtn);
       types.forEach(function(t){
         var b = el('button','cat-btn',esc(t));
-        b.addEventListener('click', function(){ filterByType(cf, grid, t); });
+        b.addEventListener('click', function(){ fstate.type=t; updateFilterBtns(cf,t); applyFilters(grid,fstate); });
         cf.appendChild(b);
       });
       body.appendChild(cf);
+    }
+    /* 年份筛选 */
+    var yearSet = {};
+    data.list.forEach(function(it){ if(it.year) yearSet[it.year]=true; });
+    var years = Object.keys(yearSet).sort(function(a,b){ return parseInt(b)||0 - (parseInt(a)||0); });
+    if(years.length > 1){
+      var yf = el('div','cat-filter');
+      yf.appendChild(el('span','label','年份：'));
+      var yAllBtn = el('button','cat-btn on','全部');
+      yAllBtn.addEventListener('click', function(){ fstate.year=''; updateFilterBtns(yf,''); applyFilters(grid,fstate); });
+      yf.appendChild(yAllBtn);
+      years.forEach(function(y){
+        var b = el('button','cat-btn',esc(y));
+        b.addEventListener('click', function(){ fstate.year=y; updateFilterBtns(yf,y); applyFilters(grid,fstate); });
+        yf.appendChild(b);
+      });
+      body.appendChild(yf);
     }
     var grid = el('div','grid');
     data.list.forEach(function(it){
       var card = el('div','card');
       card.setAttribute('data-n', it.n);
       card.setAttribute('data-type', it.type||'');
+      card.setAttribute('data-year', it.year||'');
       var ph = phEl('ph');
       var img = posterImg(it.pic, ph);
       var badge = it.remarks ? '<span class="badge">'+esc(it.remarks)+'</span>' : '';
@@ -426,7 +470,7 @@ function renderResults(st){
       card.appendChild(el('div','cinfo',
         '<div class="cname">'+esc(it.name)+'</div>'+
         '<div class="cmeta"><span class="year">'+esc(it.year||'')+'</span>'+type+'<span>'+esc(it.area||'')+'</span></div>'));
-      card.addEventListener('click', function(){ nav(detLink(st.kw, st.src, this.getAttribute('data-n'))) });
+      card.addEventListener('click', function(){ nav(detLink(st.kw, actualSrc, this.getAttribute('data-n'))) });
       grid.appendChild(card);
     });
     body.appendChild(grid);
@@ -441,6 +485,40 @@ function renderResults(st){
   });
 }
 
+/* 多源站自动轮询 */
+function searchWithFallback(kw, src, tried){
+  return search(kw, src).then(function(data){
+    if(data.list && data.list.length) return {data:data, src:src};
+    tried.push(src);
+    var next = SOURCES.find(function(s){ return tried.indexOf(s.id)===-1; });
+    if(next) return searchWithFallback(kw, next.id, tried);
+    return {data:data, src:src};
+  }).catch(function(){
+    tried.push(src);
+    var next = SOURCES.find(function(s){ return tried.indexOf(s.id)===-1; });
+    if(next) return searchWithFallback(kw, next.id, tried);
+    return {data:null, src:src};
+  });
+}
+
+function updateFilterBtns(container, active){
+  container.querySelectorAll('.cat-btn').forEach(function(b){
+    b.classList.toggle('on', !active ? b.textContent==='全部' : b.textContent===active);
+  });
+}
+function applyFilters(grid, state){
+  var visible = 0;
+  grid.querySelectorAll('.card').forEach(function(c){
+    var typeOk = !state.type || c.getAttribute('data-type')===state.type;
+    var yearOk = !state.year || c.getAttribute('data-year')===state.year;
+    var show = typeOk && yearOk;
+    c.style.display = show ? '' : 'none';
+    if(show) visible++;
+  });
+  if(visible===0) toast('当前筛选条件下暂无结果', true);
+  return visible;
+}
+
 function renderSourceSwitch(st){
   var sw = $('#sourceSwitch'); sw.innerHTML='';
   SOURCES.forEach(function(s){
@@ -452,21 +530,6 @@ function renderSourceSwitch(st){
     });
     sw.appendChild(b);
   });
-}
-
-function filterByType(cf, grid, type){
-  cf.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.remove('on'); });
-  if(!type){ cf.querySelector('.cat-btn').classList.add('on'); }
-  else {
-    Array.from(cf.querySelectorAll('.cat-btn')).forEach(function(b){ if(b.textContent===type) b.classList.add('on'); });
-  }
-  var visible = 0;
-  grid.querySelectorAll('.card').forEach(function(c){
-    var show = !type || c.getAttribute('data-type')===type;
-    c.style.display = show ? '' : 'none';
-    if(show) visible++;
-  });
-  if(visible===0){ toast('该分类下暂无结果', true); }
 }
 
 function emptyBox(title, tip){
