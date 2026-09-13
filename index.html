@@ -281,6 +281,20 @@ var SOURCES  = [{id:1,name:"源站1"},{id:2,name:"源站2"},{id:3,name:"源站3"
 var HOT_TAGS = ["流浪地球","哪吒","狂飙","三体","周星驰","封神","长津湖","复仇者联盟","速度与激情","白蛇","庆余年","斗罗大陆"];
 var CAT_TAGS = ["电影","电视剧","动漫","综艺","纪录片","科幻","动作","喜剧","爱情","悬疑","恐怖","战争"];
 var ACTOR_TAGS = ["吴京","刘德华","周星驰","沈腾","贾玲","成龙","李连杰","周润发","梁朝伟","古天乐","张艺谋","陈思诚"];
+var ACTOR_WORKS = {
+  "周星驰":["大话西游","喜剧之王","功夫","少林足球","唐伯虎点秋香","九品芝麻官","国产凌凌漆","食神","逃学威龙","鹿鼎记","武状元苏乞儿","整蛊专家","赌圣","百变星君","大内密探零零发","长江七号","西游降魔篇","美人鱼"],
+  "吴京":["战狼","流浪地球","长津湖","杀破狼","狼牙","男儿本色","攀登者","金刚川","乘风","我和我的父辈"],
+  "刘德华":["无间道","天下无贼","失孤","扫毒","拆弹专家","追龙","旺角卡门","天若有情","赌侠","阿飞正传","桃姐","解救吾先生"],
+  "沈腾":["夏洛特烦恼","西虹市首富","飞驰人生","疯狂的外星人","羞羞的铁拳","你好李焕英","独行月球","满江红","疯狂的石头","一念天堂"],
+  "贾玲":["你好李焕英","热辣滚烫","穿越寒冬拥抱你","万万没想到","摆渡人","欢喜密探"],
+  "成龙":["警察故事","尖峰时刻","十二生肖","红番区","醉拳","A计划","龙兄虎弟","快餐车","我是谁","神话","宝贝计划","功夫瑜伽"],
+  "李连杰":["黄飞鸿","少林寺","方世玉","太极张三丰","中南海保镖","精武英雄","英雄","投名状","敢死队","笑傲江湖"],
+  "周润发":["英雄本色","赌神","上海滩","纵横四海","卧虎藏龙","让子弹飞","无双","寒战","澳门风云","监狱风云"],
+  "梁朝伟":["无间道","花样年华","重庆森林","春光乍泄","色戒","一代宗师","摆渡人","捉妖记","伤城","听风者"],
+  "古天乐":["神雕侠侣","寻秦记","窃听风云","扫毒","使徒行者","反贪风暴","杀破狼","单身男女","宝贝计划","保持通话"],
+  "张艺谋":["红高粱","活着","英雄","十面埋伏","满城尽带黄金甲","金陵十三钗","归来","悬崖之上","满江红","一秒钟","坚如磐石"],
+  "陈思诚":["唐人街探案","北京爱情故事","误杀","消失的她","远大前程","外太空的莫扎特"]
+};
 
 var PH_SVG = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300"><rect width="200" height="300" fill="#141a2e"/><g fill="none" stroke="#3a4568" stroke-width="4" stroke-linecap="round"><rect x="30" y="90" width="70" height="52" rx="6"/><path d="M62 100l24 16-24 16z"/><rect x="110" y="132" width="60" height="46" rx="6"/><path d="M138 141l20 14-20 14z"/><rect x="32" y="172" width="60" height="46" rx="6"/><path d="M60 181l20 14-20 14z"/></g></svg>');
@@ -401,8 +415,10 @@ function renderResults(st){
     sk.appendChild(c);
   }
   body.appendChild(sk);
-  /* 多源站自动轮询：当前源站无结果时自动尝试其他源站 */
-  searchWithFallback(st.kw, st.src, []).then(function(result){
+  /* 演员关联搜索 or 普通搜索+多源站轮询 */
+  var isActor = !!ACTOR_WORKS[st.kw];
+  var p = isActor ? actorSearch(st.kw) : searchWithFallback(st.kw, st.src, []);
+  p.then(function(result){
     body.innerHTML='';
     var data = result.data, actualSrc = result.src;
     if(!data || !data.list || !data.list.length){
@@ -410,9 +426,12 @@ function renderResults(st){
       $('#resMeta').textContent='共 0 条结果';
       return;
     }
-    if(actualSrc !== st.src){
+    if(!isActor && actualSrc !== st.src){
       renderSourceSwitch({view:'results', kw:st.kw, src:actualSrc});
       toast('已自动切换到'+(data.source&&data.source.name||('源站'+actualSrc))+'找到结果');
+    }
+    if(isActor){
+      $('#resTitle').textContent = '「'+st.kw+'」的参演作品';
     }
     var total = data.total||0;
     $('#resMeta').innerHTML = '共 <b>'+total+'</b> 条结果 · 资源站：'+esc(data.source&&data.source.name||('源站'+actualSrc));
@@ -498,6 +517,32 @@ function searchWithFallback(kw, src, tried){
     var next = SOURCES.find(function(s){ return tried.indexOf(s.id)===-1; });
     if(next) return searchWithFallback(kw, next.id, tried);
     return {data:null, src:src};
+  });
+}
+
+/* 演员关联搜索：并行搜索代表作，过滤演员表含该演员的影片 */
+function actorSearch(actorName){
+  var works = ACTOR_WORKS[actorName] || [];
+  if(!works.length) return Promise.resolve({data:null, src:1, actorMode:true});
+  var promises = works.map(function(w){ return search(w, 1).catch(function(){ return null; }); });
+  return Promise.all(promises).then(function(results){
+    var seen = {};
+    var list = [];
+    results.forEach(function(data){
+      if(!data || !data.list) return;
+      data.list.forEach(function(it){
+        var actorMatch = (it.actor||'').indexOf(actorName) !== -1;
+        var nameMatch = (it.name||'').indexOf(actorName) !== -1;
+        if(!actorMatch && !nameMatch) return;
+        var key = it.name + '|' + (it.year||'');
+        if(seen[key]) return;
+        seen[key] = true;
+        list.push(it);
+      });
+    });
+    /* 按年份降序 */
+    list.sort(function(a,b){ return (parseInt(b.year)||0) - (parseInt(a.year)||0); });
+    return {data:{list:list, total:list.length, source:{name:actorName+'相关作品'}}, src:1, actorMode:true};
   });
 }
 
