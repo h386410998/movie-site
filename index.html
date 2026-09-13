@@ -94,6 +94,14 @@ main{max-width:1240px;margin:0 auto;padding:26px 20px 80px}
 }
 .src-btn.on{background:rgba(245,185,66,.14);border-color:var(--gold);color:var(--gold2)}
 .src-btn:hover{color:var(--txt)}
+.cat-filter{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 18px;align-items:center}
+.cat-filter .label{font-size:12.5px;color:var(--dim);margin-right:2px}
+.cat-btn{padding:6px 14px;border-radius:999px;border:1px solid var(--line);font-size:12.5px;color:var(--sub);transition:.15s;background:var(--card)}
+.cat-btn.on{background:rgba(245,185,66,.16);border-color:var(--gold);color:var(--gold2);font-weight:700}
+.cat-btn:hover{color:var(--txt);border-color:rgba(255,255,255,.25)}
+.cat-section{margin-top:34px;text-align:left}
+.cat-section h3{font-size:15px;font-weight:700;color:var(--sub);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.cat-section h3::before{content:"";width:4px;height:16px;border-radius:2px;background:var(--gold)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:18px}
 @media(max-width:520px){.grid{grid-template-columns:repeat(2,1fr);gap:12px}}
 .card{
@@ -271,6 +279,7 @@ var API_KEY  = "cA92M8EqjQkZZq4AkBM";
 var PARSER   = "https://m3u8.yaohud.cn/?url=";
 var SOURCES  = [{id:1,name:"源站1"},{id:2,name:"源站2"},{id:3,name:"源站3"},{id:4,name:"源站4"}];
 var HOT_TAGS = ["流浪地球","哪吒","狂飙","三体","周星驰","封神","长津湖","复仇者联盟","速度与激情","白蛇","庆余年","斗罗大陆"];
+var CAT_TAGS = ["电影","电视剧","动漫","综艺","纪录片","科幻","动作","喜剧","爱情","悬疑","恐怖","战争"];
 
 var PH_SVG = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300"><rect width="200" height="300" fill="#141a2e"/><g fill="none" stroke="#3a4568" stroke-width="4" stroke-linecap="round"><rect x="30" y="90" width="70" height="52" rx="6"/><path d="M62 100l24 16-24 16z"/><rect x="110" y="132" width="60" height="46" rx="6"/><path d="M138 141l20 14-20 14z"/><rect x="32" y="172" width="60" height="46" rx="6"/><path d="M60 181l20 14-20 14z"/></g></svg>');
@@ -350,6 +359,18 @@ function renderHome(){
     var a = el('a','chip',esc(t)); a.href = srcLink(t,1,1);
     box.appendChild(a);
   });
+  /* 热门分类 */
+  var sec = el('div','cat-section');
+  sec.appendChild(el('h3','','热门分类'));
+  var cbox = el('div','tags');
+  cbox.style.marginTop = '0';
+  CAT_TAGS.forEach(function(t){
+    var a = el('a','chip',esc(t)); a.href = srcLink(t,1,1);
+    cbox.appendChild(a);
+  });
+  sec.appendChild(cbox);
+  var hero = document.querySelector('.hero');
+  if(hero && !hero.querySelector('.cat-section')) hero.appendChild(sec);
 }
 
 /* ================= 搜索结果 ================= */
@@ -371,10 +392,28 @@ function renderResults(st){
     if(!data.list || !data.list.length){ body.appendChild(emptyBox('未找到相关资源','换个关键词试试，或切换资源站搜索')); $('#resMeta').textContent='共 0 条结果'; return; }
     var total = data.total||0;
     $('#resMeta').innerHTML = '共 <b>'+total+'</b> 条结果 · 资源站：'+esc(data.source&&data.source.name||('源站'+st.src));
+    /* 分类筛选 */
+    var typeSet = {};
+    data.list.forEach(function(it){ if(it.type) typeSet[it.type]=true; });
+    var types = Object.keys(typeSet);
+    if(types.length > 1){
+      var cf = el('div','cat-filter');
+      cf.appendChild(el('span','label','分类：'));
+      var allBtn = el('button','cat-btn on','全部');
+      allBtn.addEventListener('click', function(){ filterByType(cf, grid, ''); });
+      cf.appendChild(allBtn);
+      types.forEach(function(t){
+        var b = el('button','cat-btn',esc(t));
+        b.addEventListener('click', function(){ filterByType(cf, grid, t); });
+        cf.appendChild(b);
+      });
+      body.appendChild(cf);
+    }
     var grid = el('div','grid');
     data.list.forEach(function(it){
       var card = el('div','card');
       card.setAttribute('data-n', it.n);
+      card.setAttribute('data-type', it.type||'');
       var ph = phEl('ph');
       var img = posterImg(it.pic, ph);
       var badge = it.remarks ? '<span class="badge">'+esc(it.remarks)+'</span>' : '';
@@ -413,6 +452,21 @@ function renderSourceSwitch(st){
     });
     sw.appendChild(b);
   });
+}
+
+function filterByType(cf, grid, type){
+  cf.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.remove('on'); });
+  if(!type){ cf.querySelector('.cat-btn').classList.add('on'); }
+  else {
+    Array.from(cf.querySelectorAll('.cat-btn')).forEach(function(b){ if(b.textContent===type) b.classList.add('on'); });
+  }
+  var visible = 0;
+  grid.querySelectorAll('.card').forEach(function(c){
+    var show = !type || c.getAttribute('data-type')===type;
+    c.style.display = show ? '' : 'none';
+    if(show) visible++;
+  });
+  if(visible===0){ toast('该分类下暂无结果', true); }
 }
 
 function emptyBox(title, tip){
